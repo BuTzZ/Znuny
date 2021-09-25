@@ -92,6 +92,18 @@ sub Run {
     my $CustomerUserObject = $Kernel::OM->Get('Kernel::System::CustomerUser');
 
     my $CustomerIDs = { $CustomerUserObject->CustomerSearch( CustomerIDRaw => $Param{CustomerID} ) };
+    
+    # if we are using AdminCustomerUserCustomer Module we have to expand our search and add missing ids
+    my @MemberCustomerIDs = $CustomerUserObject->CustomerUserCustomerMemberList(
+	    CustomerID => $Param{CustomerID},
+    );
+    
+    MemberCustomerID:
+    for my $MemberCustomerID (@MemberCustomerIDs)
+    {
+    	my $tmpMemberCustomer = { $CustomerUserObject->CustomerSearch( UserLogin => $MemberCustomerID ) };
+	    $CustomerIDs = { %$CustomerIDs, %$tmpMemberCustomer };
+    }
 
     # add page nav bar
     my $Total = scalar keys %{$CustomerIDs};
@@ -153,6 +165,21 @@ sub Run {
                 Name => 'OverviewResultSwitchToCustomer',
             );
         }
+    }
+    
+    # show change customer relations button if the agent has permission:
+    my $ChangeCustomerReleationsAccess = $LayoutObject->Permission(
+        Action => 'AdminCustomerUserCustomer',
+        Type   => 'rw',                          # ro|rw possible
+    );
+
+    if ($ChangeCustomerReleationsAccess) {
+        $LayoutObject->Block(
+            Name => 'ContentLargeCustomerIDAdd',
+            Data => {
+                CustomerID => $Param{CustomerID},
+            },
+        );
     }
 
     # Show add new customer button if:
